@@ -24,6 +24,7 @@
     <ProjectGuid>{2d409223-41fb-4b1f-aff2-d7e544216766}</ProjectGuid>
     <RootNamespace>CSCN74000Project</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>CSCN74000_Client</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
