@@ -89,7 +89,7 @@ void ServerApp::stop() {
 }
 
 // ============================================================
-//  Private – connection lifecycle
+//  Private - connection lifecycle
 // ============================================================
 
 bool ServerApp::waitForClient() {
@@ -145,7 +145,7 @@ void ServerApp::handleClient() {
         case REQ_LANDING_SLOT:  handleReqLandingSlot(m_client_sock, h, payload);       break;
         case REQ_DISPATCH_PKG:  handleReqDispatchPkg(m_client_sock);                   break;
         default:
-            printf("Unknown command %u – ignored\n", (unsigned)h.command_id);
+            printf("Unknown command %u ?ignored\n", (unsigned)h.command_id);
             break;
         }
     }
@@ -162,7 +162,7 @@ void ServerApp::resetConnection() {
 }
 
 // ============================================================
-//  Private – command handlers
+//  Private - command handlers
 // ============================================================
 
 void ServerApp::handleHello(SOCKET s, const Header& /*h*/) {
@@ -286,7 +286,7 @@ void ServerApp::handleReqDispatchPkg(SOCKET s) {
 }
 
 // ============================================================
-//  Private – business logic
+//  Private - business logic
 // ============================================================
 
 bool ServerApp::validateFlightPlan(const FlightPlanPayload& fp) {
@@ -305,7 +305,7 @@ uint16_t ServerApp::allocLandingSlot(uint32_t /*eta*/, char* runway_out) {
 }
 
 // ============================================================
-//  Private – state machine
+//  Private - state machine
 // ============================================================
 
 bool ServerApp::transitionTo(State next) {
@@ -327,7 +327,7 @@ const char* ServerApp::stateName(State s) {
 }
 
 // ============================================================
-//  Private – network helpers
+//  Private - network helpers
 // ============================================================
 
 bool ServerApp::sendPacket(SOCKET s, CmdId cmd, const uint8_t* payload,
@@ -370,7 +370,7 @@ bool ServerApp::recvPayload(SOCKET s, uint32_t len, std::vector<uint8_t>& out) {
 }
 
 // ============================================================
-//  Private – logging
+//  Private - logging
 // ============================================================
 
 void ServerApp::logPacket(const char* dir, uint16_t cmd, uint32_t seq,

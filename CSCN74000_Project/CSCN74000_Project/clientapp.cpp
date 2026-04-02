@@ -101,7 +101,7 @@ void ClientApp::disconnect() {
 }
 
 // ============================================================
-//  Private – network helpers
+//  Private - network helpers
 // ============================================================
 
 bool ClientApp::sendPacket(SOCKET s, CmdId cmd, const uint8_t* payload, uint32_t payload_len) {
@@ -140,7 +140,7 @@ bool ClientApp::recvPayload(SOCKET s, uint32_t len, std::vector<uint8_t>& out) {
 }
 
 // ============================================================
-//  Private – handshake
+//  Private - handshake
 // ============================================================
 
 bool ClientApp::doHelloAuth(SOCKET s) {
@@ -162,7 +162,7 @@ bool ClientApp::doHelloAuth(SOCKET s) {
 }
 
 // ============================================================
-//  Private – commands
+//  Private - commands
 // ============================================================
 
 void ClientApp::cmdSubmitFlightPlan() {
@@ -264,7 +264,7 @@ void ClientApp::cmdRequestDispatchPackage() {
 }
 
 // ============================================================
-//  Private – logging
+//  Private - logging
 // ============================================================
 
 void ClientApp::logPacket(const char* dir, uint16_t cmd, uint32_t seq,
