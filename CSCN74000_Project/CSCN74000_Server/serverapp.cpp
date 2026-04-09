@@ -145,7 +145,7 @@ void ServerApp::handleClient() {
         case REQ_LANDING_SLOT:  handleReqLandingSlot(m_client_sock, h, payload);       break;
         case REQ_DISPATCH_PKG:  handleReqDispatchPkg(m_client_sock);                   break;
         default:
-            printf("Unknown command %u ?ignored\n", (unsigned)h.command_id);
+            printf("Unknown command %u - ignored\n", (unsigned)h.command_id);
             break;
         }
     }
@@ -158,6 +158,7 @@ void ServerApp::resetConnection() {
     }
     m_transfer_busy = false;
     m_seq = 0;
+    m_flight_plans.clear();
     transitionTo(STATE_LISTENING);
 }
 
