@@ -221,7 +221,7 @@ bool ClientApp::doHelloAuth(SOCKET s) {
 }
 
 // ============================================================
-//  Private ¨C commands
+//  Private - commands
 // ============================================================
 
 void ClientApp::cmdSubmitFlightPlan() {
@@ -243,12 +243,14 @@ void ClientApp::cmdSubmitFlightPlan() {
     if (!recvHeader(m_sock, h) || h.command_id != FLIGHT_PLAN_RESP) return;
     std::vector<uint8_t> pl;
     if (!recvPayload(m_sock, h.payload_length, pl)) return;
-    logPacket("RX", FLIGHT_PLAN_RESP, h.sequence, h.payload_length);
 
+    // US-LOG-02: log response with result code
+    uint16_t rc = 0xFFFF;
     if (pl.size() >= 2) {
-        uint16_t rc = ntohs(*(uint16_t*)pl.data());
+        rc = ntohs(*(uint16_t*)pl.data());
         printf("Result: %u\n", (unsigned)rc);
     }
+    logPacket("RX", FLIGHT_PLAN_RESP, h.sequence, h.payload_length, rc);
 }
 
 void ClientApp::cmdRequestTakeoffSlot() {
@@ -262,14 +264,16 @@ void ClientApp::cmdRequestTakeoffSlot() {
     if (!recvHeader(m_sock, h) || h.command_id != TAKEOFF_SLOT_RESP) return;
     std::vector<uint8_t> pl;
     if (!recvPayload(m_sock, h.payload_length, pl)) return;
-    logPacket("RX", TAKEOFF_SLOT_RESP, h.sequence, h.payload_length);
 
+    // US-LOG-02: log response with result code
+    uint16_t rc = 0xFFFF;
     if (pl.size() >= 2) {
-        uint16_t rc = ntohs(*(uint16_t*)pl.data());
+        rc = ntohs(*(uint16_t*)pl.data());
         printf("Result: %u", (unsigned)rc);
         if (pl.size() >= 18) printf("  Runway: %.16s", pl.data() + 2);
         printf("\n");
     }
+    logPacket("RX", TAKEOFF_SLOT_RESP, h.sequence, h.payload_length, rc);
 }
 
 void ClientApp::cmdRequestLandingSlot() {
@@ -283,14 +287,16 @@ void ClientApp::cmdRequestLandingSlot() {
     if (!recvHeader(m_sock, h) || h.command_id != LANDING_SLOT_RESP) return;
     std::vector<uint8_t> pl;
     if (!recvPayload(m_sock, h.payload_length, pl)) return;
-    logPacket("RX", LANDING_SLOT_RESP, h.sequence, h.payload_length);
 
+    // US-LOG-02: log response with result code
+    uint16_t rc = 0xFFFF;
     if (pl.size() >= 2) {
-        uint16_t rc = ntohs(*(uint16_t*)pl.data());
+        rc = ntohs(*(uint16_t*)pl.data());
         printf("Result: %u", (unsigned)rc);
         if (pl.size() >= 18) printf("  Runway: %.16s", pl.data() + 2);
         printf("\n");
     }
+    logPacket("RX", LANDING_SLOT_RESP, h.sequence, h.payload_length, rc);
 }
 
 void ClientApp::cmdRequestDispatchPackage() {
