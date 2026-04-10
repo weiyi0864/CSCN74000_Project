@@ -8,8 +8,8 @@
 
 using namespace proto;
 
-static const char* LOG_DIR = "logs";
-static const char* LOG_FILE = "logs/server.log";
+static const char* const LOG_DIR = "logs";
+static const char* const LOG_FILE = "logs/server.log";
 
 // ============================================================
 //  Constructor / Destructor
@@ -29,12 +29,16 @@ ServerApp::ServerApp()
 
     _mkdir(LOG_DIR);
     m_log = fopen(LOG_FILE, "a");
-    if (!m_log) m_log = stderr;
+    if (!m_log) {
+        m_log = stderr;
+    }
 }
 
 ServerApp::~ServerApp() {
     stop();
-    if (m_log && m_log != stderr) fclose(m_log);
+    if (m_log && m_log != stderr) {
+        fclose(m_log);
+    }
     WSACleanup();
 }
 
@@ -70,7 +74,9 @@ bool ServerApp::start(uint16_t port, int timeout_sec) {
 void ServerApp::run() {
     while (m_state != STATE_ERROR) {
         if (m_state == STATE_LISTENING) {
-            if (!waitForClient()) continue;
+            if (!waitForClient()) {
+                continue;
+            }
         }
         handleClient();
         resetConnection();
@@ -95,7 +101,9 @@ void ServerApp::stop() {
 bool ServerApp::waitForClient() {
     printf("Waiting for connection...\n");
     m_client_sock = accept(m_listen_sock, nullptr, nullptr);
-    if (m_client_sock == INVALID_SOCKET) return false;
+    if (m_client_sock == INVALID_SOCKET) {
+        return false;
+    }
 
     DWORD to = (DWORD)(m_timeout_sec * 1000);
     setsockopt(m_client_sock, SOL_SOCKET, SO_RCVTIMEO, (char*)&to, sizeof(to));
@@ -145,12 +153,13 @@ void ServerApp::handleClient() {
         case REQ_LANDING_SLOT:  handleReqLandingSlot(m_client_sock, h, payload);       break;
         case REQ_DISPATCH_PKG:  handleReqDispatchPkg(m_client_sock);                   break;
         default:
-            printf("Unknown command %u ?ignored\n", (unsigned)h.command_id);
+            printf("Unknown command %u - ignored\n", (unsigned)h.command_id);
             break;
         }
     }
 }
 
+// US-STM-04: close socket, clear all session data, transition back to LISTENING
 void ServerApp::resetConnection() {
     if (m_client_sock != INVALID_SOCKET) {
         closesocket(m_client_sock);
@@ -158,6 +167,7 @@ void ServerApp::resetConnection() {
     }
     m_transfer_busy = false;
     m_seq = 0;
+    m_flight_plans.clear();
     transitionTo(STATE_LISTENING);
 }
 
@@ -166,19 +176,25 @@ void ServerApp::resetConnection() {
 // ============================================================
 
 void ServerApp::handleHello(SOCKET s, const Header& /*h*/) {
-    if (m_state != STATE_CONNECTED) return;
+    if (m_state != STATE_CONNECTED) {
+        return;
+    }
     sendPacket(s, HELLO_ACK, nullptr, 0);
 }
 
 void ServerApp::handleAuth(SOCKET s, const Header& /*h*/) {
-    if (m_state != STATE_CONNECTED) return;
+    if (m_state != STATE_CONNECTED) {
+        return;
+    }
     sendPacket(s, AUTH_ACK, nullptr, 0);
     transitionTo(STATE_VERIFIED);
 }
 
 void ServerApp::handleSubmitFlightPlan(SOCKET s, const Header& /*h*/,
     const std::vector<uint8_t>& payload) {
-    if (m_state != STATE_VERIFIED) return;
+    if (m_state != STATE_VERIFIED) {
+        return;
+    }
 
     if (payload.size() < sizeof(FlightPlanPayload)) {
         uint16_t rc = htons(ERR_INVALID_PACKET);
@@ -204,14 +220,18 @@ void ServerApp::handleSubmitFlightPlan(SOCKET s, const Header& /*h*/,
 
 void ServerApp::handleReqTakeoffSlot(SOCKET s, const Header& /*h*/,
     const std::vector<uint8_t>& payload) {
-    if (m_state != STATE_VERIFIED) return;
+    if (m_state != STATE_VERIFIED) {
+        return;
+    }
 
     if (m_transfer_busy) {
         uint16_t rc = htons(ERR_BUSY);
         sendPacket(s, TAKEOFF_SLOT_RESP, (uint8_t*)&rc, 2, ERR_BUSY);
         return;
     }
-    if (payload.size() < 4) return;
+    if (payload.size() < 4) {
+        return;
+    }
 
     uint32_t etd;
     memcpy(&etd, payload.data(), 4);
@@ -229,14 +249,18 @@ void ServerApp::handleReqTakeoffSlot(SOCKET s, const Header& /*h*/,
 
 void ServerApp::handleReqLandingSlot(SOCKET s, const Header& /*h*/,
     const std::vector<uint8_t>& payload) {
-    if (m_state != STATE_VERIFIED) return;
+    if (m_state != STATE_VERIFIED) {
+        return;
+    }
 
     if (m_transfer_busy) {
         uint16_t rc = htons(ERR_BUSY);
         sendPacket(s, LANDING_SLOT_RESP, (uint8_t*)&rc, 2, ERR_BUSY);
         return;
     }
-    if (payload.size() < 4) return;
+    if (payload.size() < 4) {
+        return;
+    }
 
     uint32_t eta;
     memcpy(&eta, payload.data(), 4);
@@ -253,14 +277,18 @@ void ServerApp::handleReqLandingSlot(SOCKET s, const Header& /*h*/,
 }
 
 void ServerApp::handleReqDispatchPkg(SOCKET s) {
-    if (m_state != STATE_VERIFIED) return;
+    if (m_state != STATE_VERIFIED) {
+        return;
+    }
 
     m_transfer_busy = true;
     transitionTo(STATE_TRANSFERRING);
 
     // Generate 1 MB synthetic dispatch package
     std::vector<uint8_t> pkg(DISPATCH_PKG_SIZE);
-    for (size_t i = 0; i < pkg.size(); ++i) pkg[i] = (uint8_t)(i % 256);
+    for (size_t i = 0; i < pkg.size(); ++i) {
+        pkg[i] = (uint8_t)(i % 256);
+    }
 
     uint32_t total_chunks = (DISPATCH_PKG_SIZE + CHUNK_SIZE - 1) / CHUNK_SIZE;
     for (uint32_t i = 0; i < total_chunks; ++i) {
@@ -277,8 +305,9 @@ void ServerApp::handleReqDispatchPkg(SOCKET s) {
         memcpy(chunk_payload.data(), &meta, sizeof(meta));
         memcpy(chunk_payload.data() + sizeof(meta), pkg.data() + off, len);
 
-        if (!sendPacket(s, DISPATCH_CHUNK, chunk_payload.data(), (uint32_t)chunk_payload.size()))
+        if (!sendPacket(s, DISPATCH_CHUNK, chunk_payload.data(), (uint32_t)chunk_payload.size())) {
             break;
+        }
     }
 
     m_transfer_busy = false;
@@ -340,30 +369,42 @@ bool ServerApp::sendPacket(SOCKET s, CmdId cmd, const uint8_t* payload,
     h.checksum = (payload && payload_len) ? checksum(payload, payload_len) : 0;
     header_to_net(h);
 
-    if (send(s, (const char*)&h, sizeof(h), 0) != (int)sizeof(h)) return false;
+    if (send(s, (const char*)&h, sizeof(h), 0) != (int)sizeof(h)) {
+        return false;
+    }
     if (payload && payload_len &&
-        send(s, (const char*)payload, payload_len, 0) != (int)payload_len) return false;
+        send(s, (const char*)payload, payload_len, 0) != (int)payload_len) {
+        return false;
+    }
 
-    if (result_code >= 0)
+    if (result_code >= 0) {
         logPacket("TX", cmd, m_seq, payload_len, (uint16_t)result_code);
-    else
+    }
+    else {
         logPacket("TX", cmd, m_seq, payload_len);
+    }
     return true;
 }
 
 bool ServerApp::recvHeader(SOCKET s, Header& h) {
-    if (recv(s, (char*)&h, sizeof(h), 0) != (int)sizeof(h)) return false;
+    if (recv(s, (char*)&h, sizeof(h), 0) != (int)sizeof(h)) {
+        return false;
+    }
     header_to_host(h);
     return true;
 }
 
 bool ServerApp::recvPayload(SOCKET s, uint32_t len, std::vector<uint8_t>& out) {
     out.resize(len);
-    if (len == 0) return true;
+    if (len == 0) {
+        return true;
+    }
     size_t total = 0;
     while (total < len) {
         int n = recv(s, (char*)out.data() + total, (int)(len - total), 0);
-        if (n <= 0) return false;
+        if (n <= 0) {
+            return false;
+        }
         total += n;
     }
     return true;
@@ -375,18 +416,22 @@ bool ServerApp::recvPayload(SOCKET s, uint32_t len, std::vector<uint8_t>& out) {
 
 void ServerApp::logPacket(const char* dir, uint16_t cmd, uint32_t seq,
     uint32_t payload_sz, uint16_t result) {
-    if (!m_log) return;
+    if (!m_log) {
+        return;
+    }
     time_t t = time(nullptr);
     struct tm tm_buf;
     localtime_s(&tm_buf, &t);
     char ts[64];
     strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", &tm_buf);
 
-    if (result != 0xFFFF)
+    if (result != 0xFFFF) {
         fprintf(m_log, "%s %s CMD=%u SEQ=%u PAYLOAD=%u RESULT=%u\n",
             ts, dir, (unsigned)cmd, seq, payload_sz, (unsigned)result);
-    else
+    }
+    else {
         fprintf(m_log, "%s %s CMD=%u SEQ=%u PAYLOAD=%u\n",
             ts, dir, (unsigned)cmd, seq, payload_sz);
+    }
     fflush(m_log);
 }
