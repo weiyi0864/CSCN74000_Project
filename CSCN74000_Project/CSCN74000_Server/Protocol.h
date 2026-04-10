@@ -16,7 +16,7 @@ namespace proto {
     constexpr uint32_t DISPATCH_PKG_SIZE = 1024 * 1024;  // 1 MB
     constexpr uint32_t CHUNK_SIZE = 8192;
     constexpr uint32_t DEFAULT_PORT = 5050;
-    constexpr int     DEFAULT_TIMEOUT_SEC = 30;
+    constexpr int     DEFAULT_TIMEOUT_SEC = 120;
 
     enum CmdId : uint16_t {
         HELLO = 1,
