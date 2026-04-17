@@ -3,9 +3,100 @@
 #include <fstream>
 #include <ctime>
 #include <cstring>
+#include <cctype>
 #include <direct.h>
 
 using namespace proto;
+
+// --- Input helpers: retry on invalid input ---
+static uint64_t readUint64(const char* prompt) {
+    uint64_t val = 0;
+    for (;;) {
+        printf("%s", prompt);
+        if (scanf("%I64u", (unsigned __int64*)&val) == 1) return val;
+        int c; while ((c = getchar()) != '\n' && c != EOF) {}
+        printf("  Invalid input, please enter a number.\n");
+    }
+}
+
+static uint32_t readUint32(const char* prompt) {
+    uint32_t val = 0;
+    for (;;) {
+        printf("%s", prompt);
+        if (scanf("%u", &val) == 1) return val;
+        int c; while ((c = getchar()) != '\n' && c != EOF) {}
+        printf("  Invalid input, please enter a number.\n");
+    }
+}
+
+// Read a non-empty string of 1..maxLen alphanumeric/dash/hyphen chars
+static void readString(const char* prompt, char* buf, size_t bufSize) {
+    for (;;) {
+        printf("%s", prompt);
+        char tmp[256] = {};
+        if (scanf("%255s", tmp) != 1 || tmp[0] == '\0') {
+            int c; while ((c = getchar()) != '\n' && c != EOF) {}
+            printf("  Input cannot be empty.\n");
+            continue;
+        }
+        if (strlen(tmp) >= bufSize) {
+            printf("  Input too long (max %zu chars).\n", bufSize - 1);
+            continue;
+        }
+        strncpy_s(buf, bufSize, tmp, _TRUNCATE);
+        return;
+    }
+}
+
+// Read a 2-4 letter uppercase ICAO code (e.g. CYYZ)
+static void readICAO(const char* prompt, char* buf, size_t bufSize) {
+    for (;;) {
+        printf("%s", prompt);
+        char tmp[256] = {};
+        if (scanf("%255s", tmp) != 1 || tmp[0] == '\0') {
+            int c; while ((c = getchar()) != '\n' && c != EOF) {}
+            printf("  Input cannot be empty.\n");
+            continue;
+        }
+        size_t len = strlen(tmp);
+        if (len < 2 || len > 4) {
+            printf("  ICAO code must be 2-4 characters (e.g. CYYZ).\n");
+            continue;
+        }
+        bool valid = true;
+        for (size_t i = 0; i < len; ++i) {
+            if (!isalpha((unsigned char)tmp[i])) { valid = false; break; }
+            tmp[i] = (char)toupper((unsigned char)tmp[i]);
+        }
+        if (!valid) {
+            printf("  ICAO code must contain only letters.\n");
+            continue;
+        }
+        strncpy_s(buf, bufSize, tmp, _TRUNCATE);
+        return;
+    }
+}
+
+// Read TAKEOFF or LANDING
+static void readRunwayOp(const char* prompt, char* buf, size_t bufSize) {
+    for (;;) {
+        printf("%s", prompt);
+        char tmp[256] = {};
+        if (scanf("%255s", tmp) != 1 || tmp[0] == '\0') {
+            int c; while ((c = getchar()) != '\n' && c != EOF) {}
+            printf("  Input cannot be empty.\n");
+            continue;
+        }
+        // uppercase for comparison
+        for (size_t i = 0; tmp[i]; ++i)
+            tmp[i] = (char)toupper((unsigned char)tmp[i]);
+        if (strcmp(tmp, "TAKEOFF") == 0 || strcmp(tmp, "LANDING") == 0) {
+            strncpy_s(buf, bufSize, tmp, _TRUNCATE);
+            return;
+        }
+        printf("  Please enter TAKEOFF or LANDING.\n");
+    }
+}
 
 static const char* const LOG_DIR = "logs";
 static const char* const LOG_FILE = "logs/client.log";
@@ -140,12 +231,20 @@ void ClientApp::run() {
     }
 
     for (;;) {
-        printf("\n1=Submit flight plan  2=Request takeoff slot  "
-            "3=Request landing slot  4=Request dispatch package  "
-            "5=Reconnect  6=Export log  0=Exit\n> ");
+        printf("\n--- Menu ---\n"
+            "  1 = Submit flight plan\n"
+            "  2 = Request takeoff slot\n"
+            "  3 = Request landing slot\n"
+            "  4 = Request dispatch package\n"
+            "  5 = Reconnect\n"
+            "  6 = Export log\n"
+            "  0 = Exit\n"
+            "> ");
         int choice = 0;
         if (scanf("%d", &choice) != 1) {
-            break;
+            int c; while ((c = getchar()) != '\n' && c != EOF) {}
+            printf("  Invalid input, please enter a number.\n");
+            continue;
         }
         if (choice == 0) {
             break;
@@ -251,13 +350,13 @@ bool ClientApp::doHelloAuth(SOCKET s) {
 
 void ClientApp::cmdSubmitFlightPlan() {
     FlightPlanPayload fp = {};
-    printf("Flight ID:        "); scanf("%31s", fp.flight_id);
-    printf("Aircraft ID:      "); scanf("%31s", fp.aircraft_id);
-    printf("Origin:           "); scanf("%31s", fp.origin);
-    printf("Destination:      "); scanf("%31s", fp.destination);
-    printf("ETD (epoch min):  "); scanf("%I64u", (unsigned __int64*)&fp.etd);
-    printf("ETA (epoch min):  "); scanf("%I64u", (unsigned __int64*)&fp.eta);
-    printf("Runway op:        "); scanf("%15s", fp.runway_op);
+    readString("Flight ID (e.g. AC101):              ", fp.flight_id, sizeof(fp.flight_id));
+    readString("Aircraft ID (e.g. C-FABC):           ", fp.aircraft_id, sizeof(fp.aircraft_id));
+    readICAO("Origin ICAO code (e.g. CYYZ):        ", fp.origin, sizeof(fp.origin));
+    readICAO("Destination ICAO code (e.g. CYUL):   ", fp.destination, sizeof(fp.destination));
+    fp.etd = readUint64("ETD in minutes since epoch (e.g. 1000): ");
+    fp.eta = readUint64("ETA in minutes since epoch (e.g. 1060): ");
+    readRunwayOp("Runway operation (TAKEOFF/LANDING):  ", fp.runway_op, sizeof(fp.runway_op));
 
     fp.etd = _byteswap_uint64(fp.etd);
     fp.eta = _byteswap_uint64(fp.eta);
@@ -284,8 +383,7 @@ void ClientApp::cmdSubmitFlightPlan() {
 }
 
 void ClientApp::cmdRequestTakeoffSlot() {
-    uint32_t etd = 0;
-    printf("ETD (epoch min): "); scanf("%u", &etd);
+    uint32_t etd = readUint32("ETD in minutes since epoch (e.g. 1000): ");
     etd = htonl(etd);
 
     if (!sendPacket(m_sock, REQ_TAKEOFF_SLOT, (uint8_t*)&etd, 4)) {
@@ -314,8 +412,7 @@ void ClientApp::cmdRequestTakeoffSlot() {
 }
 
 void ClientApp::cmdRequestLandingSlot() {
-    uint32_t eta = 0;
-    printf("ETA (epoch min): "); scanf("%u", &eta);
+    uint32_t eta = readUint32("ETA in minutes since epoch (e.g. 1060): ");
     eta = htonl(eta);
 
     if (!sendPacket(m_sock, REQ_LANDING_SLOT, (uint8_t*)&eta, 4)) {
